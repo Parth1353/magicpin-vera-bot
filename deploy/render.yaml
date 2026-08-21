@@ -1,0 +1,19 @@
+# Render blueprint. Deploy with: render blueprint launch  (or connect the repo in the UI)
+services:
+  - type: web
+    name: vera-bot
+    runtime: docker
+    plan: starter          # keep a paid instance: free tiers sleep, and the judge polls
+    dockerfilePath: ../Dockerfile
+    dockerContext: ..
+    healthCheckPath: /v1/healthz
+    numInstances: 1        # state is in-process; do not scale horizontally
+    envVars:
+      - key: VERA_TEAM_NAME
+        value: Parth Saini
+      - key: VERA_CONTACT_EMAIL
+        value: parthsaini13@gmail.com
+      - key: VERA_LLM_ENABLED
+        value: "false"     # the composer needs no model; set true only with a key below
+      # - key: VERA_LLM_API_KEY
+      #   sync: false

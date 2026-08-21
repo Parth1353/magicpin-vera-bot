@@ -1,0 +1,29 @@
+# Fly.io. Deploy with: fly launch --no-deploy && fly deploy
+app = "vera-bot"
+primary_region = "bom"        # Mumbai: closest to a judge harness running in India
+
+[build]
+  dockerfile = "../Dockerfile"
+
+[env]
+  PORT = "8080"
+  VERA_LLM_ENABLED = "false"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false   # the judge polls /v1/healthz; a sleeping machine fails it
+  auto_start_machines = true
+  min_machines_running = 1     # in-process state: exactly one machine
+  processes = ["app"]
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "3s"
+  grace_period = "10s"
+  method = "GET"
+  path = "/v1/healthz"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
