@@ -2,15 +2,21 @@
 
 **Submission for the magicpin AI Challenge.** Parth Saini · parthsaini13@gmail.com
 
-Public base URL: `<set after deploy>` · endpoints `/v1/context`, `/v1/tick`, `/v1/reply`,
-`/v1/healthz`, `/v1/metadata`
+**Public base URL: `https://magicpin-vera-bot-9ckg.onrender.com`**
+
+Endpoints: `POST /v1/context` · `POST /v1/tick` · `POST /v1/reply` · `GET /v1/healthz` ·
+`GET /v1/metadata` (plus `POST /v1/teardown`)
 
 ```bash
 pip install -r requirements.txt && python run.py       # serves on :8080
 python -m pytest tests/ -q                             # 111 tests
-python tools/harness_sim.py --url http://localhost:8080  # full judge lifecycle, no key needed
-LLM_API_KEY=sk-... python tools/run_judge.py           # the official judge_simulator, scored
+python tools/harness_sim.py --url https://magicpin-vera-bot-9ckg.onrender.com
+LLM_API_KEY=sk-... python tools/run_judge.py --url https://magicpin-vera-bot-9ckg.onrender.com
 ```
+
+Deployed on Render (Singapore, free tier, single instance — state is in-process).
+`.github/workflows/keep-warm.yml` pings `/v1/healthz` every 10 minutes so the free instance
+does not idle out mid-judging.
 
 ---
 

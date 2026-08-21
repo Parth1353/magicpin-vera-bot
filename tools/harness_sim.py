@@ -22,7 +22,9 @@ import json
 import re
 import sys
 import time
+import http.client
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
@@ -51,36 +53,65 @@ def head(msg): print(f"\n{B}{'='*74}\n  {msg}\n{'='*74}{X}")
 
 
 class Bot:
+    """HTTP client with connection reuse.
+
+    Warmup pushes 255 contexts back to back. Opening a fresh TLS handshake for each one
+    measures the round trip to the host far more than it measures the bot, so the socket is
+    kept alive across calls and a dropped connection is retried once — which is what any
+    real harness client does.
+    """
+
     def __init__(self, base: str) -> None:
         self.base = base.rstrip("/")
         self.latencies: dict[str, list[float]] = defaultdict(list)
         self.failures: list[str] = []
+        parsed = urllib.parse.urlparse(self.base)
+        self._host = parsed.netloc
+        self._https = parsed.scheme == "https"
+        self._prefix = parsed.path.rstrip("/")
+        self._conn: http.client.HTTPConnection | None = None
+
+    def _connect(self, timeout: float):
+        cls = http.client.HTTPSConnection if self._https else http.client.HTTPConnection
+        return cls(self._host, timeout=timeout)
+
+    def _once(self, method: str, path: str, body: bytes | None, timeout: float):
+        if self._conn is None:
+            self._conn = self._connect(timeout)
+        headers = {"Content-Type": "application/json", "Connection": "keep-alive"}
+        self._conn.request(method, f"{self._prefix}{path}", body=body, headers=headers)
+        response = self._conn.getresponse()
+        raw = response.read()
+        return response.status, raw
 
     def call(self, method: str, path: str, payload: dict | None = None, timeout: float = 15.0):
-        url = f"{self.base}{path}"
         data = json.dumps(payload).encode() if payload is not None else None
-        request = urllib.request.Request(url, data=data, method=method,
-                                         headers={"Content-Type": "application/json"})
         start = time.time()
-        try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
-                body = json.loads(response.read().decode())
-                status = response.status
-        except urllib.error.HTTPError as exc:
-            status = exc.code
+        last_error = None
+        for attempt in range(2):
             try:
-                body = json.loads(exc.read().decode())
-            except Exception:
-                body = None
-        except Exception as exc:                                    # noqa: BLE001
-            self.failures.append(f"{path}: {exc}")
+                status, raw = self._once(method, path, data, timeout)
+                break
+            except Exception as exc:                                # noqa: BLE001
+                last_error = exc
+                try:
+                    if self._conn:
+                        self._conn.close()
+                finally:
+                    self._conn = None
+        else:
+            self.failures.append(f"{path}: {last_error}")
             return None, 0, (time.time() - start)
+
         elapsed = time.time() - start
         self.latencies[path].append(elapsed)
         budget = BUDGETS.get(path)
         if budget and elapsed > budget:
             self.failures.append(f"{path} took {elapsed:.1f}s (budget {budget}s)")
-        return body, status, elapsed
+        try:
+            return json.loads(raw.decode()), status, elapsed
+        except Exception:                                           # noqa: BLE001
+            return None, status, elapsed
 
 
 def load() -> dict:

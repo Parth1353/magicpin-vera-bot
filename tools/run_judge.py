@@ -35,6 +35,8 @@ def main() -> int:
     parser.add_argument("--model", default=os.getenv("LLM_MODEL", ""))
     parser.add_argument("--key", default=os.getenv("LLM_API_KEY", ""))
     parser.add_argument("--scenario", default="full_evaluation", choices=SCENARIOS)
+    parser.add_argument("--ollama-url", default=os.getenv("OLLAMA_URL", ""),
+                        help="only for --provider ollama; overrides the simulator default")
     args = parser.parse_args()
 
     if not SIMULATOR.exists():
@@ -53,6 +55,9 @@ def main() -> int:
         (r'^TEST_SCENARIO = .*$', f'TEST_SCENARIO = {args.scenario!r}'),
     ):
         source = re.sub(pattern, value, source, count=1, flags=re.M)
+    if args.ollama_url:
+        source = re.sub(r'^OLLAMA_URL = .*$', f'OLLAMA_URL = {args.ollama_url!r}',
+                        source, count=1, flags=re.M)
     # keep the simulator's own dataset path working from a temp location
     source = source.replace('DATASET_DIR = Path(__file__).parent / "dataset"',
                             f'DATASET_DIR = Path({str(PACK)!r}) / "dataset"')
