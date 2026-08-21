@@ -69,8 +69,9 @@ LLM_API_KEY=sk-... python tools/run_judge.py --url https://magicpin-vera-bot-9ck
 
 `verify_submission.py` replays every example in `examples/api-call-examples.md` verbatim
 (58 checks, all passing). `harness_sim.py` runs the full judge lifecycle including mid-test
-context injection. Deeper reasoning is in **[DESIGN.md](DESIGN.md)**; every constraint I
-extracted from the pack, with its source, is in **[SPEC-NOTES.md](SPEC-NOTES.md)**.
+context injection. Deeper reasoning is in **[DESIGN.md](DESIGN.md)**; every constraint I extracted from the
+pack, with its source, is in **[SPEC-NOTES.md](SPEC-NOTES.md)**; the pre-submission
+requirement-by-requirement audit is in **[AUDIT.md](AUDIT.md)**.
 
 `bot.py` exposes `compose(...)` per brief §7.1 and runs as `uvicorn bot:app`.
 `conversation_handlers.py` exposes `respond(state, merchant_message)` per §7.4.
